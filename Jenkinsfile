@@ -17,10 +17,12 @@ pipeline {
         stage('Prepare') {
             steps {
                 sh '''
-                    set -e
-                    mkdir -p ${REPORT_DIR}
+                    set -eux
+                    mkdir -p "${REPORT_DIR}"
+                    echo '{"test":"ok"}' > "${REPORT_DIR}/test.json"
                     echo "Workspace: $(pwd)"
                     ls -la
+                    ls -la "${REPORT_DIR}"
                     docker version
                 '''
             }
@@ -37,7 +39,7 @@ pipeline {
                       --json --output /src/${REPORT_DIR}/semgrep.json
                     EXIT_CODE=$?
                     echo "Semgrep exit code: $EXIT_CODE"
-                    ls -la ${REPORT_DIR} || true
+                    ls -la "${REPORT_DIR}" || true
                     exit 0
                 '''
             }
@@ -55,7 +57,7 @@ pipeline {
                       --output /project/${REPORT_DIR}/trivy-fs.json
                     EXIT_CODE=$?
                     echo "Trivy FS exit code: $EXIT_CODE"
-                    ls -la ${REPORT_DIR} || true
+                    ls -la "${REPORT_DIR}" || true
                     exit 0
                 '''
             }
@@ -85,7 +87,7 @@ pipeline {
                       --output /project/${REPORT_DIR}/trivy-image.json
                     EXIT_CODE=$?
                     echo "Trivy image exit code: $EXIT_CODE"
-                    ls -la ${REPORT_DIR} || true
+                    ls -la "${REPORT_DIR}" || true
                     exit 0
                 '''
             }
@@ -112,23 +114,16 @@ pipeline {
     post {
         always {
             sh '''
-                echo "Final workspace check"
+                echo "=== FINAL CHECK ==="
                 pwd
                 ls -la
-                ls -la ${REPORT_DIR} || true
-                find ${REPORT_DIR} -type f -name "*.json" || true
+                ls -la "${REPORT_DIR}" || true
+                find "${REPORT_DIR}" -type f -maxdepth 1 -name "*.json" -ls || true
+                echo "=== CAT TEST ==="
+                cat "${REPORT_DIR}/test.json" || true
             '''
-            archiveArtifacts artifacts: 'reports/**/*.json', fingerprint: true, allowEmptyArchive: true
+            archiveArtifacts artifacts: 'reports/*.json', fingerprint: true, allowEmptyArchive: true
             echo 'Pipeline completed.'
-        }
-        success {
-            echo 'Build, scan, and push succeeded.'
-        }
-        unstable {
-            echo 'Pipeline finished with warnings.'
-        }
-        failure {
-            echo 'Pipeline failed.'
         }
     }
 }
