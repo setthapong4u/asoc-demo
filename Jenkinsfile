@@ -111,19 +111,24 @@ pipeline {
         }
     }
 
-    post {
-        always {
-            sh '''
-                echo "=== FINAL CHECK ==="
-                pwd
-                ls -la
-                ls -la "${REPORT_DIR}" || true
-                find "${REPORT_DIR}" -type f -maxdepth 1 -name "*.json" -ls || true
-                echo "=== CAT TEST ==="
-                cat "${REPORT_DIR}/test.json" || true
-            '''
-            archiveArtifacts artifacts: 'reports/*.json', fingerprint: true, allowEmptyArchive: true
-            echo 'Pipeline completed.'
-        }
+post {
+    always {
+        sh '''
+            echo "=== FINAL CHECK ==="
+            pwd
+            ls -la
+            ls -la reports || true
+            stat reports/test.json || true
+            cat reports/test.json || true
+            find reports -maxdepth 1 -type f -name "*.json" | sort || true
+        '''
+        archiveArtifacts artifacts: 'reports/*.json', fingerprint: true, allowEmptyArchive: true
+        echo 'Pipeline completed.'
+    }
+    success {
+        echo 'Build, scan, and push succeeded.'
+    }
+    failure {
+        echo 'Pipeline failed.'
     }
 }
