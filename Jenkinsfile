@@ -118,11 +118,9 @@ pipeline {
                 pwd
                 ls -la
                 ls -la reports || true
-                stat reports/test.json || true
-                cat reports/test.json || true
                 find reports -maxdepth 1 -type f -name "*.json" | sort || true
             '''
-            archiveArtifacts artifacts: 'reports/*.json', fingerprint: true, allowEmptyArchive: true
+            archiveArtifacts artifacts: 'reports/test.json', fingerprint: true, allowEmptyArchive: false
             echo 'Pipeline completed.'
         }
         success {
