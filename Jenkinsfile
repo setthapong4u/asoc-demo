@@ -37,6 +37,7 @@ pipeline {
                       --json --output /src/${REPORT_DIR}/semgrep.json
                     EXIT_CODE=$?
                     echo "Semgrep exit code: $EXIT_CODE"
+                    ls -la ${REPORT_DIR} || true
                     exit 0
                 '''
             }
@@ -54,6 +55,7 @@ pipeline {
                       --output /project/${REPORT_DIR}/trivy-fs.json
                     EXIT_CODE=$?
                     echo "Trivy FS exit code: $EXIT_CODE"
+                    ls -la ${REPORT_DIR} || true
                     exit 0
                 '''
             }
@@ -76,12 +78,14 @@ pipeline {
                     set +e
                     docker run --rm \
                       -v /var/run/docker.sock:/var/run/docker.sock \
+                      -v "$PWD:/project" \
                       aquasec/trivy:0.62.0 \
                       image ${IMAGE_NAME}:${IMAGE_TAG} \
                       --format json \
-                      --output ${REPORT_DIR}/trivy-image.json
+                      --output /project/${REPORT_DIR}/trivy-image.json
                     EXIT_CODE=$?
                     echo "Trivy image exit code: $EXIT_CODE"
+                    ls -la ${REPORT_DIR} || true
                     exit 0
                 '''
             }
@@ -103,16 +107,18 @@ pipeline {
                 }
             }
         }
-
-        stage('Archive Reports') {
-            steps {
-                archiveArtifacts artifacts: 'reports/*.json', fingerprint: true
-            }
-        }
     }
 
     post {
         always {
+            sh '''
+                echo "Final workspace check"
+                pwd
+                ls -la
+                ls -la ${REPORT_DIR} || true
+                find ${REPORT_DIR} -type f -name "*.json" || true
+            '''
+            archiveArtifacts artifacts: 'reports/**/*.json', fingerprint: true, allowEmptyArchive: true
             echo 'Pipeline completed.'
         }
         success {
