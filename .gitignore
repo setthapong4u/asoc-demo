@@ -1,0 +1,33 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Local database
+*.db
+
+# Reports / scan output
+reports/
+
+# OS / editor files
+.DS_Store
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment variables / secrets
+.env
+
+# Docker (optional)
+*.tar
+
+# Jenkins workspace leftovers (just in case)
+workspace/
+
+note/
