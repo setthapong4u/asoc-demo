@@ -16,85 +16,74 @@ pipeline {
 
         stage('Prepare') {
             steps {
-                dir('demo') {
-                    sh '''
-                        set -e
-                        mkdir -p ${REPORT_DIR}
-                        echo "Workspace: $(pwd)"
-                        ls -l
-                        docker version
-                    '''
-                }
+                sh '''
+                    set -e
+                    mkdir -p ${REPORT_DIR}
+                    echo "Workspace: $(pwd)"
+                    ls -la
+                    docker version
+                '''
             }
         }
 
         stage('SAST - Semgrep') {
             steps {
-                dir('demo') {
-                    sh '''
-                        set +e
-                        docker run --rm \
-                          -v "$PWD:/src" \
-                          semgrep/semgrep \
-                          semgrep --config=p/security-audit /src \
-                          --json --output /src/${REPORT_DIR}/semgrep.json
-                        EXIT_CODE=$?
-                        echo "Semgrep exit code: $EXIT_CODE"
-                        exit 0
-                    '''
-                }
+                sh '''
+                    set +e
+                    docker run --rm \
+                      -v "$PWD:/src" \
+                      semgrep/semgrep \
+                      semgrep --config=p/security-audit /src \
+                      --json --output /src/${REPORT_DIR}/semgrep.json
+                    EXIT_CODE=$?
+                    echo "Semgrep exit code: $EXIT_CODE"
+                    exit 0
+                '''
             }
         }
 
         stage('SCA - Trivy FS') {
             steps {
-                dir('demo') {
-                    sh '''
-                        set +e
-                        docker run --rm \
-                          -v "$PWD:/project" \
-                          aquasec/trivy:latest \
-                          fs /project \
-                          --format json \
-                          --output /project/${REPORT_DIR}/trivy-fs.json
-                        EXIT_CODE=$?
-                        echo "Trivy FS exit code: $EXIT_CODE"
-                        exit 0
-                    '''
-                }
+                sh '''
+                    set +e
+                    docker run --rm \
+                      -v "$PWD:/project" \
+                      aquasec/trivy:0.62.0 \
+                      fs /project \
+                      --format json \
+                      --output /project/${REPORT_DIR}/trivy-fs.json
+                    EXIT_CODE=$?
+                    echo "Trivy FS exit code: $EXIT_CODE"
+                    exit 0
+                '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                dir('demo') {
-                    sh '''
-                        set -e
-                        docker build \
-                          -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                          -t ${IMAGE_NAME}:latest .
-                    '''
-                }
+                sh '''
+                    set -e
+                    docker build \
+                      -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                      -t ${IMAGE_NAME}:latest .
+                '''
             }
         }
 
         stage('Container Scan - Trivy Image') {
             steps {
-                dir('demo') {
-                    sh '''
-                        set +e
-                        docker run --rm \
-                          -v /var/run/docker.sock:/var/run/docker.sock \
-                          -v "$PWD:/project" \
-                          aquasec/trivy:latest \
-                          image ${IMAGE_NAME}:${IMAGE_TAG} \
-                          --format json \
-                          --output /project/${REPORT_DIR}/trivy-image.json
-                        EXIT_CODE=$?
-                        echo "Trivy image exit code: $EXIT_CODE"
-                        exit 0
-                    '''
-                }
+                sh '''
+                    set +e
+                    docker run --rm \
+                      -v /var/run/docker.sock:/var/run/docker.sock \
+                      aquasec/trivy:0.62.0 \
+                      image ${IMAGE_NAME}:${IMAGE_TAG} \
+                      --format json \
+                      --output ${REPORT_DIR}/trivy-image.json
+                    EXIT_CODE=$?
+                    echo "Trivy image exit code: $EXIT_CODE"
+                    exit 0
+                '''
             }
         }
 
@@ -117,7 +106,7 @@ pipeline {
 
         stage('Archive Reports') {
             steps {
-                archiveArtifacts artifacts: 'demo/reports/*.json', fingerprint: true
+                archiveArtifacts artifacts: 'reports/*.json', fingerprint: true
             }
         }
     }
