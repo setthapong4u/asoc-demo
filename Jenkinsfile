@@ -35,28 +35,34 @@ pipeline {
         }
 
         stage('SAST - Semgrep') {
+            agent {
+                docker {
+                    image 'semgrep/semgrep:latest'
+                    reuseNode true
+                }
+            }
             steps {
                 sh '''
                     set +e
                     mkdir -p "${REPORT_DIR}"
 
-                    python3 -m venv .venv
-                    . .venv/bin/activate
-                    pip install -U pip semgrep 2>&1 | tee "${REPORT_DIR}/pip-semgrep.log"
+                    echo "=== SEMGREP STAGE DEBUG ==="
+                    pwd
+                    ls -la
+                    find . -maxdepth 5 -type f | sort
 
-                    .venv/bin/semgrep scan \
-                    --config=p/python \
-                    --json \
-                    --output "${REPORT_DIR}/semgrep.json" \
-                    --exclude "${REPORT_DIR}" \
-                    app.py \
-                    > "${REPORT_DIR}/semgrep-console.log" 2>&1
+                    semgrep scan \
+                      --config=p/python \
+                      --json \
+                      --output "${REPORT_DIR}/semgrep.json" \
+                      --exclude "${REPORT_DIR}" \
+                      app.py \
+                      > "${REPORT_DIR}/semgrep-console.log" 2>&1
 
                     EXIT_CODE=$?
                     echo "Semgrep exit code: $EXIT_CODE"
 
                     ls -la "${REPORT_DIR}" || true
-                    sed -n '1,200p' "${REPORT_DIR}/pip-semgrep.log" || true
                     sed -n '1,200p' "${REPORT_DIR}/semgrep-console.log" || true
                     sed -n '1,200p' "${REPORT_DIR}/semgrep.json" || true
 
