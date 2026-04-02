@@ -40,26 +40,24 @@ pipeline {
                     set +e
                     mkdir -p "${REPORT_DIR}"
 
-                    python3 -m pip install --user semgrep
+                    python3 -m venv .venv
+                    . .venv/bin/activate
+                    pip install -U pip semgrep 2>&1 | tee "${REPORT_DIR}/pip-semgrep.log"
 
-                    ~/.local/bin/semgrep scan \
-                      --config=p/python \
-                      --json \
-                      --output "${REPORT_DIR}/semgrep.json" \
-                      --exclude "${REPORT_DIR}" \
-                      app.py \
-                      > "${REPORT_DIR}/semgrep-console.log" 2>&1
+                    .venv/bin/semgrep scan \
+                    --config=p/python \
+                    --json \
+                    --output "${REPORT_DIR}/semgrep.json" \
+                    --exclude "${REPORT_DIR}" \
+                    app.py \
+                    > "${REPORT_DIR}/semgrep-console.log" 2>&1
 
                     EXIT_CODE=$?
                     echo "Semgrep exit code: $EXIT_CODE"
 
-                    echo "=== REPORT FILES ==="
                     ls -la "${REPORT_DIR}" || true
-
-                    echo "=== SEMGREP CONSOLE ==="
+                    sed -n '1,200p' "${REPORT_DIR}/pip-semgrep.log" || true
                     sed -n '1,200p' "${REPORT_DIR}/semgrep-console.log" || true
-
-                    echo "=== SEMGREP JSON ==="
                     sed -n '1,200p' "${REPORT_DIR}/semgrep.json" || true
 
                     exit 0
