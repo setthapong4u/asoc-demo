@@ -48,28 +48,20 @@ pipeline {
 
                     docker run --rm \
                     -v "$(pwd):/src" \
-                    semgrep/semgrep \
-                    sh -c '
-                        echo "=== Container view ==="
-                        ls -la /src
-                        find /src -maxdepth 3 -type f | sort
-
-                        if [ ! -f /src/app.py ]; then
-                        echo "ERROR: /src/app.py not found inside container"
-                        exit 2
-                        fi
-
-                        semgrep scan \
-                        --config auto \
-                        /src/app.py \
+                    semgrep/semgrep:latest \
+                    semgrep scan \
+                        --config=auto \
                         --json \
-                        --output /src/'"${REPORT_DIR}"'/semgrep.json
-                    '
+                        --output /src/${REPORT_DIR}/semgrep.json \
+                        --exclude /src/${REPORT_DIR} \
+                        /src/app.py
 
                     EXIT_CODE=$?
                     echo "Semgrep exit code: $EXIT_CODE"
+
                     echo "=== Report files ==="
                     ls -la "${REPORT_DIR}" || true
+
                     echo "=== semgrep.json head ==="
                     sed -n '1,120p' "${REPORT_DIR}/semgrep.json" || true
 
