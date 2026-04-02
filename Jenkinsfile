@@ -81,33 +81,61 @@ pipeline {
             }
         }
 
-        stage('SCA - Trivy FS') {
+        stage('SCA - Trivy') {
             steps {
                 sh '''
                     set +e
-                    docker run --rm \
-                      -v "$PWD:/project" \
-                      aquasec/trivy:0.62.0 \
-                      fs /project --format json \
-                      > "${REPORT_DIR}/trivy-fs.json"
+                    mkdir -p "${REPORT_DIR}"
+
+                    echo "=== CLEAN OLD TRIVY FS FILES ==="
+                    rm -f "${REPORT_DIR}/trivy-fs.json" "${REPORT_DIR}/trivy-fs-console.log" || true
+
+                    echo "=== CREATE TRIVY CONTAINER ==="
+                    CID=$(docker create --entrypoint /bin/sh aquasec/trivy:0.62.0 -c "
+                        cd /project && \
+                        ls -la && \
+                        trivy fs /project --format json --output /project/${REPORT_DIR}/trivy-fs.json
+                    ")
+                    echo "Container ID: ${CID}"
+
+                    echo "=== COPY WORKSPACE INTO CONTAINER ==="
+                    docker cp . "${CID}:/project"
+
+                    echo "=== RUN TRIVY FS ==="
+                    docker start -a "${CID}" > "${REPORT_DIR}/trivy-fs-console.log" 2>&1
                     EXIT_CODE=$?
-                    echo "Trivy FS exit code: $EXIT_CODE"
+                    echo "Trivy FS exit code: ${EXIT_CODE}"
+
+                    echo "=== COPY REPORT BACK TO WORKSPACE ==="
+                    docker cp "${CID}:/project/${REPORT_DIR}/trivy-fs.json" "${REPORT_DIR}/trivy-fs.json" 2>/dev/null || true
+
+                    echo "=== CLEAN CONTAINER ==="
+                    docker rm -f "${CID}" >/dev/null 2>&1 || true
+
+                    echo "=== TRIVY FS REPORT FILES ==="
                     ls -la "${REPORT_DIR}" || true
+
+                    echo "=== TRIVY FS CONSOLE LOG ==="
+                    sed -n '1,200p' "${REPORT_DIR}/trivy-fs-console.log" || true
+
+                    echo "=== TRIVY FS JSON ==="
+                    sed -n '1,200p' "${REPORT_DIR}/trivy-fs.json" || true
+
                     exit 0
                 '''
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                sh '''
-                    set -e
-                    docker build \
-                      -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                      -t ${IMAGE_NAME}:latest .
-                '''
-            }
-        }
+                stage('Build Docker Image') {
+                    steps {
+                        sh '''
+                            set -e
+                            docker build \
+                            -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                            -t ${IMAGE_NAME}:latest .
+                        '''
+                    }
+                }
 
         stage('Container Scan - Trivy Image') {
             steps {
