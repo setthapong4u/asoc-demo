@@ -34,14 +34,34 @@ pipeline {
             steps {
                 sh '''
                     set +e
+                    mkdir -p "${REPORT_DIR}"
+
+                    echo "=== Jenkins workspace debug ==="
+                    echo "PWD=$(pwd)"
+                    ls -la
+                    find . -maxdepth 3 -type f | sort
+
                     docker run --rm \
-                      -v "$PWD:/src" \
-                      semgrep/semgrep \
-                      semgrep --config=p/security-audit /src --json \
-                      > "${REPORT_DIR}/semgrep.json"
+                    -v "$(pwd):/src" \
+                    semgrep/semgrep \
+                    sh -c '
+                        echo "=== Container view ==="
+                        pwd
+                        ls -la /src
+                        find /src -maxdepth 3 -type f | sort
+                        semgrep scan --config p/security-audit /src \
+                        --exclude /src/'"${REPORT_DIR}"' \
+                        --json \
+                        --output /src/'"${REPORT_DIR}"'/semgrep.json
+                    '
+
                     EXIT_CODE=$?
                     echo "Semgrep exit code: $EXIT_CODE"
+                    echo "=== Report files ==="
                     ls -la "${REPORT_DIR}" || true
+                    echo "=== semgrep.json head ==="
+                    sed -n '1,120p' "${REPORT_DIR}/semgrep.json" || true
+
                     exit 0
                 '''
             }
