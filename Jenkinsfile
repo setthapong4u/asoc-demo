@@ -30,6 +30,17 @@ pipeline {
             }
         }
 
+        stage('Debug Workspace') {
+            steps {
+                sh '''
+                    echo "=== WORKSPACE DEBUG ==="
+                    pwd
+                    ls -la
+                    find . -maxdepth 5 -type f | sort
+                '''
+            }
+        }
+
         stage('SAST - Semgrep') {
             steps {
                 sh '''
