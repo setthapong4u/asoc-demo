@@ -47,35 +47,23 @@ pipeline {
                     set +e
                     mkdir -p "${REPORT_DIR}"
 
-                    echo "=== Jenkins workspace debug ==="
-                    echo "PWD=$(pwd)"
-                    ls -la
-                    find . -maxdepth 3 -type f | sort
-
-                    if [ ! -f "./app.py" ]; then
-                    echo "ERROR: app.py not found in workspace root"
-                    exit 1
-                    fi
-
                     docker run --rm \
+                    --entrypoint /bin/sh \
                     -v "$(pwd):/src" \
                     semgrep/semgrep:latest \
-                    semgrep scan \
+                    -c '
+                        semgrep scan \
                         --config=auto \
                         --json \
-                        --output /src/${REPORT_DIR}/semgrep.json \
-                        --exclude /src/${REPORT_DIR} \
+                        --output /src/reports/semgrep.json \
+                        --exclude /src/reports \
                         /src/app.py
+                    '
 
                     EXIT_CODE=$?
                     echo "Semgrep exit code: $EXIT_CODE"
-
-                    echo "=== Report files ==="
                     ls -la "${REPORT_DIR}" || true
-
-                    echo "=== semgrep.json head ==="
                     sed -n '1,120p' "${REPORT_DIR}/semgrep.json" || true
-
                     exit 0
                 '''
             }
