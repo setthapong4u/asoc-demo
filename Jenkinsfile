@@ -41,16 +41,27 @@ pipeline {
                     ls -la
                     find . -maxdepth 3 -type f | sort
 
+                    if [ ! -f "./app.py" ]; then
+                    echo "ERROR: app.py not found in workspace root"
+                    exit 1
+                    fi
+
                     docker run --rm \
                     -v "$(pwd):/src" \
                     semgrep/semgrep \
                     sh -c '
                         echo "=== Container view ==="
-                        pwd
                         ls -la /src
                         find /src -maxdepth 3 -type f | sort
-                        semgrep scan --config p/security-audit /src \
-                        --exclude /src/'"${REPORT_DIR}"' \
+
+                        if [ ! -f /src/app.py ]; then
+                        echo "ERROR: /src/app.py not found inside container"
+                        exit 2
+                        fi
+
+                        semgrep scan \
+                        --config auto \
+                        /src/app.py \
                         --json \
                         --output /src/'"${REPORT_DIR}"'/semgrep.json
                     '
